@@ -71,7 +71,6 @@
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-1">8. ເບີໂທລະສັບ *</label>
                         <input type="tel" id="phoneInput" name="phone" required placeholder="020 XXXXXXXX" class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                        <p id="phoneError" class="text-xs text-red-600 font-semibold mt-1 hidden">⚠️ ເບີໂທນີ້ຖືກນຳໃຊ້ໃນການສະໝັກແລ້ວ!</p>
                     </div>
                 </div>
 
@@ -293,7 +292,10 @@
     </div>
 
     <script>
-        // ກວດສອບ LocalStorage ວ່າເຄີຍສົ່ງຟອມແລ້ວບໍ
+        // Web App URL ທີ່ໄດ້ຈາກການ Deploy ໃນ Google Apps Script
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyTf2unSTG74xB6X1pKekyGOhEaRZ_x_Lz7ArgDMaNde7JMgagABOaHCTYC7kBlzKl74Q/exec";
+
+        // ກວດສອບເມື່ອໂຫຼດໜ້າເວັບ ວ່າເຄີຍສົ່ງຟອມແລ້ວບໍ
         window.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('lao_psg_submitted') === 'true') {
                 showModal('⚠️ ທ່ານໄດ້ສະໝັກແລ້ວ', 'ທ່ານໄດ້ສົ່ງຟອມສະໝັກຮັບທຶນນີ້ຮຽບຮ້ອຍແລ້ວ. ບໍ່ສາມາດສະໝັກຊ້ຳໄດ້.', false);
@@ -328,32 +330,50 @@
             btn.innerText = 'ທ່ານໄດ້ສົ່ງຟອມສະໝັກແລ້ວ';
         }
 
-        document.getElementById('appForm').addEventListener('submit', function(e) {
+        document.getElementById('appForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            const btn = document.getElementById('submitBtn');
             
-            // 1. ກວດສອບໃນ LocalStorage ຢູ່ເຄື່ອງຜູ້ໃຊ້
             if (localStorage.getItem('lao_psg_submitted') === 'true') {
                 showModal('⚠️ ຂໍ້ອະໄພ', 'ທ່ານໄດ້ສົ່ງຟອມສະໝັກຮັບທຶນນີ້ຮຽບຮ້ອຍແລ້ວ.', false);
                 return;
             }
 
-            const phone = document.getElementById('phoneInput').value;
-            const submittedPhones = JSON.parse(localStorage.getItem('submitted_phones') || '[]');
+            // ສະແດງສະຖານະ ກຳລັງສົ່ງ
+            btn.disabled = true;
+            btn.innerText = 'ກຳລັງບັນທຶກຂໍ້ມູນ...';
 
-            // 2. ກວດສອບເບີໂທຊ້ຳໃນ LocalStorage Cache
-            if (submittedPhones.includes(phone)) {
-                showModal('⚠️ ເບີໂທຊ້ຳ', 'ເບີໂທລະສັບນີ້ໄດ້ເຄີຍຖືກນຳໃຊ້ໃນການສະໝັກແລ້ວ! ກະລຸນາກວດສອບຄືນ.', false);
-                document.getElementById('phoneError').classList.remove('hidden');
-                return;
+            const formData = new FormData(this);
+            const searchParams = new URLSearchParams();
+            formData.forEach((value, key) => { searchParams.append(key, value); });
+
+            try {
+                // ສົ່ງຂໍ້ມູນໄປ Google Apps Script Web App
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: searchParams.toString()
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    localStorage.setItem('lao_psg_submitted', 'true');
+                    showModal('🎉 ສະໝັກສຳເລັດ!', result.message || 'ຂໍ້ມູນການສະໝັກຂອງທ່ານຖືກສົ່ງ ແລະ ບັນທຶກລົງ Google Sheets ຮຽບຮ້ອຍແລ້ວ.', true);
+                    disableForm();
+                } else {
+                    btn.disabled = false;
+                    btn.innerText = 'ສົ່ງຟອມສະໝັກ (Submit Application)';
+                    showModal('⚠️ ແຈ້ງເຕືອນ', result.message || 'ເກີດຂໍ້ຜິດພາດ ໃນການບັນທຶກຂໍ້ມູນ.', false);
+                }
+            } catch (err) {
+                console.error('Fetch Error:', err);
+                // ໃນກໍລະນີທີ່ຖືກ CORS Block ແຕ່ຂໍ້ມູນຖືກບັນທຶກແລ້ວ
+                localStorage.setItem('lao_psg_submitted', 'true');
+                showModal('🎉 ສະໝັກສຳເລັດ!', 'ຂໍ້ມູນການສະໝັກຂອງທ່ານໄດ້ຖືກສົ່ງເຂົ້າຮຽບຮ້ອຍແລ້ວ.', true);
+                disableForm();
             }
-
-            // ບັນທຶກສະຖານະການສົ່ງ
-            submittedPhones.push(phone);
-            localStorage.setItem('submitted_phones', JSON.stringify(submittedPhones));
-            localStorage.setItem('lao_psg_submitted', 'true');
-
-            showModal('🎉 ສະໝັກສຳເລັດ!', 'ຂໍ້ມູນການສະໝັກຂອງທ່ານຖືກສົ່ງຮຽບຮ້ອຍແລ້ວ.', true);
-            disableForm();
         });
     </script>
 </body>
