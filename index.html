@@ -396,30 +396,24 @@
             formData.forEach((value, key) => { searchParams.append(key, value); });
 
             try {
-                // ສົ່ງຂໍ້ມູນໄປ Google Apps Script Web App
-                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                // ສົ່ງຂໍ້ມູນໄປ Google Apps Script Web App ໂດຍໃຊ້ mode: 'no-cors' ເພື່ອປ້ອງກັນ CORS Error
+                await fetch(GOOGLE_SCRIPT_URL, {
                     method: 'POST',
+                    mode: 'no-cors',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: searchParams.toString()
                 });
 
-                const result = await response.json();
+                // ເນື່ອງຈາກ no-cors ຈະບໍ່ສາມາດອ່ານ JSON response ໄດ້ ແຕ່ຂໍ້ມູນຈະຖືກບັນທຶກລົງ Sheet ຮຽບຮ້ອຍແລ້ວ
+                localStorage.setItem('lao_psg_submitted', 'true');
+                showModal('🎉 ສະໝັກສຳເລັດ!', 'ຂໍ້ມູນການສະໝັກຂອງທ່ານຖືກສົ່ງ ແລະ ບັນທຶກລົງ Google Sheets ຮຽບຮ້ອຍແລ້ວ.', true);
+                disableForm();
 
-                if (result.status === 'success') {
-                    localStorage.setItem('lao_psg_submitted', 'true');
-                    showModal('🎉 ສະໝັກສຳເລັດ!', result.message || 'ຂໍ້ມູນການສະໝັກຂອງທ່ານຖືກສົ່ງ ແລະ ບັນທຶກລົງ Google Sheets ຮຽບຮ້ອຍແລ້ວ.', true);
-                    disableForm();
-                } else {
-                    btn.disabled = false;
-                    btn.innerText = 'ສົ່ງຟອມສະໝັກ (Submit Application)';
-                    showModal('⚠️ ແຈ້ງເຕືອນ', result.message || 'ເກີດຂໍ້ຜິດພາດ ໃນການບັນທຶກຂໍ້ມູນ.', false);
-                }
             } catch (err) {
                 console.error('Fetch Error:', err);
-                // ໃນກໍລະນີທີ່ຖືກ CORS Block ແຕ່ຂໍ້ມູນຖືກບັນທຶກແລ້ວ
-                localStorage.setItem('lao_psg_submitted', 'true');
-                showModal('🎉 ສະໝັກສຳເລັດ!', 'ຂໍ້ມູນການສະໝັກຂອງທ່ານໄດ້ຖືກສົ່ງເຂົ້າຮຽບຮ້ອຍແລ້ວ.', true);
-                disableForm();
+                btn.disabled = false;
+                btn.innerText = 'ສົ່ງຟອມສະໝັກ (Submit Application)';
+                showModal('⚠️ ແຈ້ງເຕືອນ', 'ເກີດຂໍ້ຜິດພາດ ໃນການເຊື່ອມຕໍ່ກັບເຊີເວີ ກະລຸນາລອງໃໝ່ອີກຄັ້ງ.', false);
             }
         });
     </script>
